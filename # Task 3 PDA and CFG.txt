@@ -1,0 +1,127 @@
+# Task 3: PDA and CFG Implementation
+
+import re
+from functools import lru_cache
+
+# 1. Nested Tags using Stack (PDA)
+def check_tags(text):
+    tags = re.findall(r'</?(?:div|p|b)>', text)
+
+    if ''.join(tags) != text:
+        return False
+
+    stack = []
+
+    for tag in tags:
+        if tag.startswith("</"):
+            if not stack:
+                return False
+
+            opening = stack.pop()
+            if opening != tag[2:-1]:
+                return False
+        else:
+            stack.append(tag[1:-1])
+
+    return len(stack) == 0
+
+
+# 2. Arithmetic Expression using CFG
+def check_expression(text):
+    text = text.replace(" ", "")
+    pos = 0
+
+    def E():
+        return T() and X()
+
+    def X():
+        nonlocal pos
+        while pos < len(text) and text[pos] in "+-":
+            pos += 1
+            if not T():
+                return False
+        return True
+
+    def T():
+        nonlocal pos
+        if not F():
+            return False
+
+        while pos < len(text) and text[pos] in "*/":
+            pos += 1
+            if not F():
+                return False
+        return True
+
+    def F():
+        nonlocal pos
+
+        if pos < len(text) and text[pos] == 'n':
+            pos += 1
+            return True
+
+        if pos < len(text) and text[pos] == '(':
+            pos += 1
+            if E() and pos < len(text) and text[pos] == ')':
+                pos += 1
+                return True
+
+        return False
+
+    return E() and pos == len(text)
+
+
+# 3. Dangling Else using CFG
+def check_dangling(text):
+
+    @lru_cache(None)
+    def M(pos):
+        result = set()
+
+        if pos < len(text) and text[pos] == 'a':
+            result.add(pos + 1)
+
+        if pos < len(text) and text[pos] == 'i':
+            for x in M(pos + 1):
+                if x < len(text) and text[x] == 'e':
+                    result.update(M(x + 1))
+
+        return result
+
+    @lru_cache(None)
+    def U(pos):
+        result = set()
+
+        if pos < len(text) and text[pos] == 'i':
+            result.update(S(pos + 1))
+
+            for x in M(pos + 1):
+                if x < len(text) and text[x] == 'e':
+                    result.update(U(x + 1))
+
+        return result
+
+    @lru_cache(None)
+    def S(pos):
+        return M(pos) | U(pos)
+
+    return len(text) in S(0)
+
+
+# Main Program
+print("PDA AND CFG VALIDATOR")
+
+tag = input("Enter HTML Tags: ")
+expression = input("Enter Expression: ")
+statement = input("Enter Dangling Else String: ")
+
+print("\n--- RESULTS ---")
+
+print("Nested Tags:",
+      "ACCEPTED" if check_tags(tag) else "REJECTED")
+
+print("Expression:",
+      "ACCEPTED" if check_expression(expression) else "REJECTED")
+
+print("Dangling Else:",
+      "ACCEPTED" if check_dangling(statement) else "REJECTED")
